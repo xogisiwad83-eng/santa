@@ -1,6 +1,7 @@
 import sqlite3
 import random
 import string
+from config import config
 
 
 class Database:
@@ -80,3 +81,6 @@ class Database:
 
             if not exists:
                 return code
+
+
+db = Database(config.DATABASE_PATH)

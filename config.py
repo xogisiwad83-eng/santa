@@ -6,11 +6,10 @@ import os
 
 load_dotenv()
 
-
 @dataclass
 class Config:
     BOT_TOKEN: str
-    DATABASE_PATH: Optional(str) = "data/secret_santa.db"
+    DATABASE_PATH: Optional[str] = "secret_santa.db"
 
 
 def load_config() -> Config:
@@ -21,7 +20,7 @@ def load_config() -> Config:
             BOT_TOKEN=token,
             DATABASE_PATH=path
         )
-    elif path:
+    elif token:
         return Config(BOT_TOKEN=token)
     raise ValueError("Токен не подгрузился")
 

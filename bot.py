@@ -1,15 +1,25 @@
 import asyncio
+import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Command, StateFilter
 from aiogram.types import Message
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 from config import config
+from database import db
 
 
 bot = Bot(token=config.BOT_TOKEN)
 dp = Dispatcher()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # ==========================================
@@ -38,15 +48,45 @@ def get_main_menu():
     )
     return keyboard
 
+def get_organizer_menu(): 
+    keyboard = ReplyKeyboardMarkup( 
+        keyboard=[ 
+            [KeyboardButton(text="👤 Список участников")], 
+            [KeyboardButton(text="🎲 Запустить жеребьевку")], 
+            [KeyboardButton(text="🏠 Главное меню")],  
+        ], 
+        resize_keyboard=True
+    ) 
+    return keyboard
+    
+def get_cancel_keyboard():
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="⛔ Отмена")],
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
 
-@dp.Message()
-async def echo(message: Message):
-    await message.answer(message.text)
+
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    await message.answer(
+        f"👋 Привет, {message.from_user.first_name}!\n\n"
+        "Я бот для игры в Тайного Санту 🎅\n\n"
+        "🎮 <b>Что я умею:</b>\n"
+        "• Создавать игры для обмена подарками\n"
+        "• Помогать участникам присоединяться\n"
+        "• Проводить тайную жеребьёвку\n"
+        "• Хранить пожелания к подаркам\n\n"
+        "Выбери действие на клавиатуре ⬇️",
+        reply_markup=get_main_menu(),
+        parse_mode="HTML"
+        )
 
 
 async def main():
-    await bot.delete_webhook(drop_pending_updates=True)
-
+    
     await dp.start_polling(bot)
 
 
