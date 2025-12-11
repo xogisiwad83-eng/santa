@@ -82,5 +82,38 @@ class Database:
             if not exists:
                 return code
 
+    def create_game(self, creator_id: int) -> str:
+        """
+        Создание новой игры
+        
+        Args:
+            creator_id: Telegram ID создателя
+            
+        Returns:
+            Код игры
+        """
+        code = self.generate_game_code()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+                       select id from games
+                       where creator_id = ? and is_drawn = 0
+                    """, (creator_id,))
+        existing_game = cursor.fetchone()
+        if existing_game:
+            game_id = existing_game['id']
+            cursor.execute('delete from games where id = ?', (game_id,)) 
+            cursor.execute('delete from assignments where game_id = ?', (game_id,))
+            cursor.execute('delete from participants where game_id = ?', (game_id,)) 
+        
+        cursor.execute("""
+                       insert into games (code, creator_id)
+                       values (?,?)
+                       """, (code, creator_id))
+        
+        conn.commit()
+        conn.close()
+        return code   
 
+ 
 db = Database(config.DATABASE_PATH)

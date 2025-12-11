@@ -83,6 +83,22 @@ async def cmd_start(message: Message):
         reply_markup=get_main_menu(),
         parse_mode="HTML"
         )
+    
+@dp.message(Command("create_game"))
+@dp.message(F.text == "🎮 Создать игру")
+async def create_game(message: Message):
+    code = db.create_game(message.from_user.id)
+    await message.answer(
+        f"🎮 <b>Игра создана!</b>\n\n"
+        f"📝 Код игры: <code>{code}</code>\n\n"
+        f"Отправьте этот код участникам.\n"
+        f"Они смогут присоединиться через кнопку "
+        f"'🎯 Присоединиться к игре'\n\n"
+        f"⚠️ Для жеребьёвки нужно минимум 3 участника", 
+        reply_markup=get_organizer_menu(), 
+        parse_mode="HTML"
+    )
+    
 
 
 async def main():
