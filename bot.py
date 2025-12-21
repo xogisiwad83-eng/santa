@@ -10,6 +10,7 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKey
 
 from config import config
 from database import db
+from typing import Optional
 
 
 bot = Bot(token=config.BOT_TOKEN)
@@ -99,7 +100,103 @@ async def create_game(message: Message):
         parse_mode="HTML"
     )
     
+@dp.message(Command("help"))
+@dp.message(F.text=="❓ Помощь")
+async def help_command(message: Message):
+    help_text = """
+    <b>Как играть в Тайного Санту (5 шагов):</b>
+    1. Создайте игру.
+    2. Пригласите друзей.
+    3. Запишите свои пожелания.
+    4. Дождитесь жеребьёвки.
+    5. Купите и подарите подарок!
 
+    <b>Минимальное количество участников:</b> 3
+    <b>Правило:</b> Один участник — одна игра.
+    <b>Удачи!</b>
+    """
+    await message.answer(
+        help_text,
+        parse_mode="HTML",
+        reply_markup=get_main_menu()
+    )
+    
+    
+# Join game
+
+class JoinGame(StatesGroup):
+    waiting_for_code = State()
+    waiting_for_name = State()
+    waiting_for_wishes = State()
+
+@dp.message(Command("join_game"))
+@dp.message(F.text=="Присоединиться к игре")
+async def join_game_start(message: Message, state: FSMContext):
+    await state.set_state(JoinGame.waiting_for_code)
+    await message.answer(
+        "Введите код игры (6 символов):",
+        reply_markup=get_cancel_keyboard()
+    )
+    
+    
+# Обработка кода игры
+
+
+@dp.message(JoinGame.waiting_for_code)
+async def process_game_code(message: Message, state: FSMContext):
+    code = message.text.strip().upper()
+
+    if message.text == "Отмена":
+        await state.clear()
+        await message.answer("Отменено.", reply_markup=get_main_menu())
+        return
+
+    if len(code) != 6:
+        await message.answer("Код должен содержать 6 символов. Попробуйте снова:")
+        return
+
+    game = db.get_game_by_code(code)
+    
+    if game is None:
+        await message.answer("Игра не найдена. Проверьте код и введите снова:")
+        return
+    
+    if game.get("is_drawn"):
+        await message.answer("Жеребьёвка уже проведена, присоединиться нельзя.")
+        await state.clear()
+        await message.answer("Возврат в главное меню.", reply_markup=get_main_menu())
+        return
+
+    await state.update_data(game_code=code)
+    await state.set_state(JoinGame.waiting_for_name)
+    await message.answer(f"Игра найдена! Теперь введите ваше имя:")
+    
+    
+# Обработка имени участника
+
+@dp.message(JoinGame.waiting_for_name)
+async def process_participant_name(message: Message, state: FSMContext):
+    name = message.text.strip()
+
+    if message.text == "Отмена":
+        await state.clear()
+        await message.answer("Отменено.", reply_markup=get_main_menu())
+        return
+
+    if len(name) < 2 or len(name) > 50:
+        await message.answer("Имя должно быть от 2 до 50 символов. Попробуйте снова:")
+        return
+
+    await state.update_data(user_name=name)
+    await state.set_state(JoinGame.waiting_for_wishes)
+    
+    examples = "Например:\n- Книги\n- Сладости\n- Косметика"
+    await message.answer(
+        f"Привет, {name}!\n"
+        f"Расскажите, что бы вы хотели получить в подарок.\n"
+        f"{examples}\n"
+        f"Если пожеланий нет, отправьте '-'."
+    )
 
 async def main():
     

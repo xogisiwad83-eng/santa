@@ -2,6 +2,7 @@ import sqlite3
 import random
 import string
 from config import config
+from typing import Optional, Dict, List
 
 
 class Database:
@@ -114,6 +115,59 @@ class Database:
         conn.commit()
         conn.close()
         return code   
+    
+    def get_game_by_code(self, code: str) -> Optional[Dict]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM games WHERE code = ?", (code,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return dict(row)
+        return None
+
+    def add_participant(self, game_code: str, user_id: int, user_name: str, wishes: str = "") -> bool:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        game = self.get_game_by_code(game_code)
+        if not game or game["is_drawn"]:
+            conn.close()
+            return False
+        
+        try:
+            cursor.execute("""
+                INSERT INTO participants (game_id, user_id, user_name, wishes, joined_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            """, (game["id"], user_id, user_name, wishes))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+
+    def get_participants(self, game_code: str) -> List[Dict]:
+        game = self.get_game_by_code(game_code)
+        if not game:
+            return []
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT *
+            FROM participants 
+            WHERE game_id = ? 
+            ORDER BY joined_at
+        """, (game["id"],))
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [
+            dict(r)
+            for r in rows
+        ]
 
  
 db = Database(config.DATABASE_PATH)
