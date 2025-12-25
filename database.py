@@ -168,6 +168,81 @@ class Database:
             dict(r)
             for r in rows
         ]
+        
+    def get_user_game(self, user_id: int) -> Optional[Dict]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+                       SELECT *
+                       FROM games
+                       WHERE creator_id = ? AND is_drawn = 0
+                       ORDER BY created_at DESC 
+                       LIMIT 1
+                       """, (user_id,))
+        game = cursor.fetchone()
+        if game:
+            conn.close()
+            return dict(game)
+        cursor.execute("""
+                       SELECT g.*
+                       FROM games g
+                       JOIN participants p
+                       ON g.id = p.game_id
+                       WHERE p.user_id = ?
+                       ORDER BY p.joined_at DESC 
+                       LIMIT 1
+                       """, (user_id,))
+        game = cursor.fetchone()
+        conn.close()
+        if game:
+            return dict(game)
+        return None    
+    
+    def perform_draw(self, game_code: str) -> bool:
+        game = self.get_game_by_code(game_code)
+        if not game:
+            return False
+        if game['is_drawn']:
+            return False
+        
+        participants = self.get_participants(game_code)
+        if len(participants) < 3:
+            return False
+        
+        givers = [p['id'] for p in participants]
+        
+        receivers = givers.copy()
+        
+        max_attempts = 100
+        for _ in range(max_attempts):
+            random.shuffle(receivers)
+            
+            # Проверяем, что никто не дарит сам себе
+            if all(g != r for g, r in zip(givers, receivers)):
+                break
+        else:
+            # Если не удалось после 100 попыток, используем алгоритм сдвига
+            receivers = givers[1:] + [givers[0]]
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        
+        for giver_id, receiver_id in zip(givers, receivers):
+            cursor.execute("""
+                INSERT INTO assignments (game_id, giver_id, receiver_id)
+                VALUES (?, ?, ?)
+            """, (game['id'], giver_id, receiver_id))
+            
+        cursor.execute("""
+            UPDATE games SET is_drawn = 1
+            WHERE id = ?
+        """, (game['id'],))
+        
+        conn.commit()
+        conn.close()
+        
+        return True
+            
 
  
 db = Database(config.DATABASE_PATH)
