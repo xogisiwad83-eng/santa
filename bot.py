@@ -124,13 +124,8 @@ async def help_command(message: Message):
     
 # Join game
 
-class JoinGame(StatesGroup):
-    waiting_for_code = State()
-    waiting_for_name = State()
-    waiting_for_wishes = State()
-
 @dp.message(Command("join_game"))
-@dp.message(F.text=="Присоединиться к игре")
+@dp.message(F.text=="🎯 Присоединиться к игре")
 async def join_game_start(message: Message, state: FSMContext):
     await state.set_state(JoinGame.waiting_for_code)
     await message.answer(
@@ -146,9 +141,9 @@ async def join_game_start(message: Message, state: FSMContext):
 async def process_game_code(message: Message, state: FSMContext):
     code = message.text.strip().upper()
 
-    if message.text == "Отмена":
+    if message.text == "⛔ Отмена":
         await state.clear()
-        await message.answer("Отменено.", reply_markup=get_main_menu())
+        await message.answer("⛔ Отменено", reply_markup=get_main_menu())
         return
 
     if len(code) != 6:
@@ -178,9 +173,9 @@ async def process_game_code(message: Message, state: FSMContext):
 async def process_participant_name(message: Message, state: FSMContext):
     name = message.text.strip()
 
-    if message.text == "Отмена":
+    if message.text == "⛔ Отмена":
         await state.clear()
-        await message.answer("Отменено.", reply_markup=get_main_menu())
+        await message.answer("⛔ Отменено.", reply_markup=get_main_menu())
         return
 
     if len(name) < 2 or len(name) > 50:
@@ -199,7 +194,7 @@ async def process_participant_name(message: Message, state: FSMContext):
     )
 
 async def main():
-    
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
@@ -207,4 +202,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("all dead")
+        logger.info("Bot stopped by user")
